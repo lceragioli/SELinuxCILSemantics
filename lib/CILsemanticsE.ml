@@ -436,7 +436,7 @@ let get_semantics rules =
   print_int (List.length attributes);
   print_endline "###############################\n"; *)
 
-  print_endline "SEMANTIC COMPLETED";
+  print_endline "SEMANTIC COMPLETED ";
   {
     nodes = nodes;
     allows = allows;
