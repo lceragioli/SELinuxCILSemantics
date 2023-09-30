@@ -38,6 +38,8 @@ Just clone this repo and use our module as a library, an example of usage is our
 
 The `test` directory contains both hand-crafted and real-world examples of CIL configurations, as well as a generator for random CIL configurations.
 
+Since the tests compare our semantics with the behaviour of the CIL compiler, you need secilc (for compiling CIL configurations) and sesearch (for inspecting the compiled file) to be installed in your system.
+
 To performs all the tests run the following
 ```
 dune test
