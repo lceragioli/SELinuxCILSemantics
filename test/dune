@@ -1,0 +1,16 @@
+(test
+ (name testCILSem)
+ (libraries SELinuxCILSem)
+ (modules Generate testCILSem))
+
+(test
+ (name testCILSemInt)
+ (libraries SELinuxCILSem)
+ (modules testCILSemInt))
+
+(test
+ (name testCILSemIntE)
+ (libraries SELinuxCILSem)
+ (modules testCILSemIntE))
+
+(copy_files testCases/*.cil)

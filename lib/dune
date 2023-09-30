@@ -1,0 +1,9 @@
+(library
+ (public_name SELinuxCILSem)
+ (name SELinuxCILSem))
+
+(ocamllex CILlexer)
+
+(ocamlyacc CILparser)
+
+
