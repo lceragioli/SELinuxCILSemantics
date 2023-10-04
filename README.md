@@ -4,6 +4,7 @@ An executable semantics for SELinux's CIL configuration language
 ### Requirements
 
 Ocaml, Ocamllex, Ocamlyacc >= 4.12.0
+
 Dune >= 3.8.1
 
 ### Overview
