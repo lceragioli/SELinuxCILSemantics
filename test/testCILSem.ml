@@ -1,56 +1,8 @@
-open Generate
 open SELinuxCILSem.CILsyntax
-open SELinuxCILSem.CILsemantics
 
-let maxdecnum = 10 
-let maxcomnum = 10
-let maxnamesNum = 10
-let configNum = 100 
+exception Timeout
 
-let configname = "CILtestcases/config-"
-let outname = "CILtestcases/out-"
-
-let preamble = "
-(handleunknown allow)
-
-(policycap open_perms)
-(category c0)
-(categoryorder (c0))
-(sensitivity s0)
-(sensitivityorder (s0))
-(sensitivitycategory s0 (c0))
-(level systemLow (s0))
-(levelrange low_low (systemLow systemLow))
-(sid kernel)
-(sidorder (kernel))
-(sidcontext kernel unconfined.sid_context)
-
-; Define object_r role. This must be assigned in CIL.
-(role object_r)
-
-; The unconfined namespace:
-(block unconfined
-	(user user)
-	(userrange user (systemLow systemLow))
-	(userlevel user systemLow)
-	(userrole user role)
-	(role role)
-	(type process)
-	(roletype object_r process)
-	(roletype role process)
-
-	; Define a SID context:
-	(context sid_context (user role process low_low))
-
-	(type object)
-	(roletype object_r object)
-)
-(classorder (folder file))
-(class file (read write open getattr))
-(classpermission fileread)
-(classpermissionset fileread (file (read)))
-(class folder ())
-"
+let max_time = 60.
 
 let parse_sesearch file =
   let allows = ref [] in
@@ -104,54 +56,97 @@ let diff_to_string (missing, unexpected) =
   "Missing (in the actual permission but not in the semantics):\n" ^ (sps_to_string missing) ^ 
   "\nUnexpected (in the semantics but not in the actual permission)\n" ^ (sps_to_string unexpected)
 
+let dir = "testCases"
+
+(** [dir_is_empty dir] is true, if [dir] contains no files except
+ * "." and ".."
+ *)
+ let dir_is_empty dir =
+  Array.length (Sys.readdir dir) = 0
+
+(** [dir_contents] returns the paths of all regular files that are
+ * contained in [dir]. Each file is a path starting with [dir].
+  *)
+let dir_contents dir =
+  let rec loop result = function
+    | f::fs when Sys.is_directory f ->
+          Sys.readdir f
+          |> Array.to_list
+          |> List.map (Filename.concat f)
+          |> List.append fs
+          |> loop result
+    | f::fs -> loop (f::result) fs
+    | []    -> result
+  in
+    loop [] [dir]
+
 let _ =
-  print_endline "\n++++ Testing the paper semantics with randomly generated tests ++++\n";
-
-  Sys.mkdir "CILtestcases" 0o755;
-  Random.self_init();
-  let log = open_out "log" in
-  let confnum = ref 0 in
-  for decnum = 10 to maxdecnum do
-    for comnum = 10 to maxcomnum do
-      for namesNum = 5 to maxnamesNum do 
-
-        for _ = 0 to configNum do
-          confnum := !confnum + 1;
-          let config = genRand decnum comnum (names namesNum) in
-          print_string "\nConfig. Num. ";
-          print_int (!confnum + 1);
-          print_newline ();
-          let file = configname ^ (string_of_int !confnum) ^ ".cil" in 
-          if Sys.command ("echo a > " ^ file) <> 0 then failwith "generic error in echo a";
-          let oc = open_out file in
-          Printf.fprintf oc "%s\n%s\n" preamble (conf_to_string config);
-          close_out oc;
-          if Sys.command ("secilc -o " ^ outname ^ (string_of_int !confnum) ^ ".out " ^ file ^ "" ) = 0 then
-            (
-            Printf.fprintf log "%n" !confnum;
-            Printf.fprintf log " <-- is a valid configuration\n";
-            if Sys.command ("sesearch --allow " ^ outname ^ (string_of_int !confnum) ^ ".out > sesearchout") <> 0 then failwith "generic error in  sesearch";
-            let ic = open_in "sesearchout" in
-            let actualAllows = parse_sesearch ic in
-            close_in ic;
-            let semAllows = paper_semantics config in
-            let (miss, unexp) = compare actualAllows semAllows in
-            if not (SPS.is_empty miss && SPS.is_empty unexp) then
-              (
-                if Sys.command ("echo a > " ^ outname ^ (string_of_int !confnum) ^ ".diff") <> 0 then failwith "generic error in diff";
-                let oc' = open_out (outname ^ (string_of_int !confnum) ^ ".diff") in
-                Printf.fprintf oc' "%s\n" (diff_to_string (miss, unexp));
-                close_out oc';    
-              ) 
+  print_endline "\n++++ Testing the paper semantics with handcrafted tests ++++\n";
+  let failures = ref [] in
+  let files = dir_contents dir in
+  List.iter
+  (fun file ->
+    print_endline ("FILE: " ^ file);
+    if Sys.command ("secilc -o out.temp " ^ file ) = 0 then
+      (
+      print_string file;
+      print_endline " <-- is a valid configuration";
+      if Sys.command ("sesearch --allow out.temp > sesearchout") <> 0 then failwith "generic error in sesearch";
+      let ic = open_in "sesearchout" in
+      print_endline " --> parsing sesearch output";
+      let actualAllows = parse_sesearch ic in
+      close_in ic;
+      print_endline " --> opening configfile";
+      let filehand = open_in file in
+      let lexbuf = Lexing.from_channel filehand in
+      let config = SELinuxCILSem.CILparser.main SELinuxCILSem.CILlexer.token lexbuf in
+      print_endline " --> closing configfile";
+      close_in filehand;
+      print_endline " --> computing semantics";
+      let start = Sys.time () in
+      let alarm = Gc.create_alarm (fun () ->
+          if Sys.time () -. start > max_time
+          then raise Timeout) in
+      let () = try
+        (
+              let semAllows = SELinuxCILSem.CILsemantics.paper_semantics (config) 
+              in
+              print_endline " --> comparing";
+              let (miss, unexp) = compare actualAllows semAllows in
+              print_endline " --> diff computed";
+              if not (SPS.is_empty miss && SPS.is_empty unexp) then
+                (
+                  failures := file :: !failures;
+                  if Sys.command ("echo a > " ^ file ^ ".diff") <> 0 then failwith "generic error in diff";
+                  print_endline " --> opening diff file";
+                  let oc' = open_out (file ^ ".diff") in
+                  Printf.fprintf oc' "%s\n" (diff_to_string (miss, unexp));
+                  print_endline " --> closing diff file";
+                  close_out oc';
+                )
             )
-          else
-            (
-            print_int !confnum;
-            print_endline " <-- is not a valid configuration";
-            Sys.remove file;
+          with 
+          | Timeout -> (
+            failures := file :: !failures;
+            if Sys.command ("echo non-termination_in_CIL_semantics > " ^ file ^ ".diff") <> 0 then failwith "generic error in diff";
             )
-        done
-      done
-    done
-  done;
-  close_out log
+          | Not_found -> (
+              failures := file :: !failures;
+              if Sys.command ("echo unexpected_error_in_CIL_semantics > " ^ file ^ ".diff") <> 0 then failwith "generic error in diff")
+          | Failure s -> (
+              failures := file :: !failures;
+              if Sys.command ("echo unexpected_error_in_CIL_semantics > " ^ file ^ ".diff") <> 0 then failwith "generic error in diff")
+        in Gc.delete_alarm alarm;
+      )
+      else
+        (
+          print_endline " <-- is not a valid configuration";
+        )
+    )
+  files;
+  print_endline ("\n+++ Results of testing the paper semantics +++\n");
+  print_string "Failed Tests\n----------\nNumer: ";
+  print_int (List.length !failures);
+  print_endline ("\nTests: " ^ (String.concat ", " !failures))
+
+  
