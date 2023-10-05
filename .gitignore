@@ -3,6 +3,7 @@ GeneratedTestCases/*.cil
 GeneratedTestCases/*.out
 *.tmp
 *.opam
+file_contexts
 *.temp
 
 
