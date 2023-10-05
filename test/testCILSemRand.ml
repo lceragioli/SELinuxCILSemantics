@@ -107,6 +107,8 @@ let _ =
   and maxnamesNum = int_of_string Sys.argv.(3)
   and configNum = int_of_string Sys.argv.(4) in
   print_endline "\n++++ Testing the paper semantics with randomly generated tests ++++\n";
+  if not (Sys.file_exists "GeneratedTestCases") then
+    Sys.mkdir "GeneratedTestCases" 0o755;
   Random.self_init();
   let log = open_out "log.tmp" in
   let problems = ref [] in
@@ -158,7 +160,7 @@ let _ =
       done
     done
   done;
-  Printf.fprintf stdout "Number of Errors: %n\n" (List.length !problems); 
+  Printf.fprintf stdout "\n\nNumber of Errors: %n\n" (List.length !problems); 
   print_string "Problematic Configurations: ";
   List.iter
     (fun prob -> 
