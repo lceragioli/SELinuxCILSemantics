@@ -37,18 +37,32 @@ Just clone this repo and use our module as a library, an example of usage is our
 
 ### Tests
 
-The `test` directory contains both hand-crafted and real-world examples of CIL configurations, as well as a generator for random CIL configurations.
+The `test` directory contains the source code for testing our semantics with both hand-crafted and random CIL configurations.
 
 Since the tests compare our semantics with the behaviour of the CIL compiler, you need secilc (for compiling CIL configurations) and sesearch (for inspecting the compiled file) to be installed in your system.
 
-To performs all the tests run the following
+To test the paper semantics with the hand-crafted configurations contained in the directory `testCases`, run
 ```
-dune test
+dune exec testCILSem
 ```
-If you want to change the tests you can:
 
- - edit, add or remove test cases from the directory "test/test-cases". and/or
- - change the parameters for generating random configurations at the beginning of "test/testCILsem.ml"
+To test the efficent implementation of our semantics with the hand-crafted configurations contained in the directory `testCases`, run
+```
+dune exec testCILSemE
+```
+
+To test the paper semantics with some randomly generate tests use
+```
+dune exec testCILSemRand <max-declaration-num> <max-commands-num> <max-names-num> <config-num> 
+```
+Where
+ - `max-declaration-num` : the test will generate configurations with number of declarations from 1 to max-declaration-num
+ - `max-commands-num` : the test will generate configurations with number of commands from 1 to max-commands-num
+ - `max-names-num` : the test will generate configurations with number of different names from 1 to max-name-num
+ - `config-num` : for each combination in the ranges above, the test will generate config-num configurations
+
+For all tests, the results are displayed on screen, and for each configuration a file .diff will be created in the same directory with the differences between our semantics and the compiler behaviour.
+Automatically generated configurations can be found inside the folder `GeneratedTestCases` (that is created when running `testCILSemRand`).
 
 ### Project structure
 
@@ -79,10 +93,10 @@ lib/                           <-- our SELinux CIL library
 test/                          <-- files and code for testing
    dune                        <-- dune configuration file
    Generate.ml - .mli          <-- module for generating random CIL configurations
-   testCILsem.ml               <-- for testing the paper semantics with generated configurations
-   testCILsemInt.ml            <-- for testing the paper semantics with the configurations in the test-cases directory
-   testCILsemIntE.ml           <-- for testing the efficient semantics with the configurations in the test-cases directory
-   real-world/                 <-- directory with real-world configurations
-   test-cases/                 <-- directory with hand-crafted intricate CIL configurations
+   testCILSemRand.ml           <-- for testing the paper semantics with generated configurations
+   testCILSem.ml               <-- for testing the paper semantics with the configurations in the test-cases directory
+   testCILSemE.ml              <-- for testing the efficient semantics with the configurations in the test-cases directory
+
+testCases/                     <-- directory with hand-crafted intricate CIL configurations
 
 ```
