@@ -91,8 +91,8 @@ let _ =
       (
       print_string file;
       print_endline " <-- is a valid configuration";
-      if Sys.command ("sesearch --allow out.temp > sesearchout") <> 0 then failwith "generic error in sesearch";
-      let ic = open_in "sesearchout" in
+      if Sys.command ("sesearch --allow out.temp > sesearchout.tmp") <> 0 then failwith "generic error in sesearch";
+      let ic = open_in "sesearchout.tmp" in
       print_endline " --> parsing sesearch output";
       let actualAllows = parse_sesearch ic in
       close_in ic;
