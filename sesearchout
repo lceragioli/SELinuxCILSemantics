@@ -1,1 +1,1 @@
-allow d d:file read;
+allow a a:file read;

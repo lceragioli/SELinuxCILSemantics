@@ -108,7 +108,7 @@ let _ =
   and configNum = int_of_string Sys.argv.(4) in
   print_endline "\n++++ Testing the paper semantics with randomly generated tests ++++\n";
   Random.self_init();
-  let log = open_out "log" in
+  let log = open_out "log.tmp" in
   let problems = ref [] in
   let confnum = ref 0 in
   for decnum = 1 to maxdecnum do
@@ -129,8 +129,8 @@ let _ =
             (
             Printf.fprintf log "%n" !confnum;
             Printf.fprintf log " <-- is a valid configuration\n";
-            if Sys.command ("sesearch --allow " ^ outname ^ (string_of_int !confnum) ^ ".out > sesearchout") <> 0 then failwith "generic error in  sesearch";
-            let ic = open_in "sesearchout" in
+            if Sys.command ("sesearch --allow " ^ outname ^ (string_of_int !confnum) ^ ".out > sesearchout.tmp") <> 0 then failwith "generic error in  sesearch";
+            let ic = open_in "sesearchout.tmp" in
             let actualAllows = parse_sesearch ic in
             close_in ic;
             let semAllows = paper_semantics config in
